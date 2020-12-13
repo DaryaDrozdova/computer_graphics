@@ -55,6 +55,12 @@
     <None Include="shader_light.vs">
       <Filter>Исходные файлы</Filter>
     </None>
+    <None Include="shader_floor.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="shader_floor.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\Textures\container2.png">

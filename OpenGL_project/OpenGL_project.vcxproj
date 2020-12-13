@@ -165,6 +165,8 @@
   <ItemGroup>
     <None Include="shader.fs" />
     <None Include="shader.vs" />
+    <None Include="shader_floor.fs" />
+    <None Include="shader_floor.vs" />
     <None Include="shader_light.fs" />
     <None Include="shader_light.vs" />
   </ItemGroup>
