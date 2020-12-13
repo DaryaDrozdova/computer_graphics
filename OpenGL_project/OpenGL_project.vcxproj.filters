@@ -24,9 +24,15 @@
     <ClCompile Include="src\glad.c">
       <Filter>Файлы ресурсов</Filter>
     </ClCompile>
+    <ClCompile Include="src\camera.cpp">
+      <Filter>Файлы ресурсов</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\shader.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="src\camera.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,6 +41,12 @@
       <Filter>Исходные файлы</Filter>
     </None>
     <None Include="shader.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="shader_light.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="shader_light.vs">
       <Filter>Исходные файлы</Filter>
     </None>
   </ItemGroup>
