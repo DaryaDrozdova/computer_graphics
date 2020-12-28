@@ -43,22 +43,34 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader.fs">
+    <None Include="shadow_mapping.fs">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="shader.vs">
+    <None Include="shadow_mapping.vs">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="shader_light.fs">
+    <None Include="shadow_mapping_depth.fs">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="shader_light.vs">
+    <None Include="shadow_mapping_depth.vs">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="shader_floor.fs">
+    <None Include="debug_quad_depth.fs">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="shader_floor.vs">
+    <None Include="debug_quad.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="skybox.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="skybox.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="semi-transparent.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="semi-transparent.fs">
       <Filter>Исходные файлы</Filter>
     </None>
   </ItemGroup>
