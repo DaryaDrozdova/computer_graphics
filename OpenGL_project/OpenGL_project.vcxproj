@@ -163,6 +163,8 @@
     <ClInclude Include="src\vendor\stb_image\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="posteffect1.fs" />
+    <None Include="posteffect1.vs" />
     <None Include="semi-transparent.fs" />
     <None Include="semi-transparent.vs" />
     <None Include="shadow_mapping.fs" />

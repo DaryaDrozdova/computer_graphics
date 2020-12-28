@@ -73,6 +73,12 @@
     <None Include="semi-transparent.fs">
       <Filter>Исходные файлы</Filter>
     </None>
+    <None Include="posteffect1.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="posteffect1.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\Textures\container2.png">
