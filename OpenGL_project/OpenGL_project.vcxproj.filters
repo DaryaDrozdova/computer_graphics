@@ -79,6 +79,18 @@
     <None Include="posteffect1.fs">
       <Filter>Исходные файлы</Filter>
     </None>
+    <None Include="pbr.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="pbr.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="light_cube.vs">
+      <Filter>Исходные файлы</Filter>
+    </None>
+    <None Include="light_cube.fs">
+      <Filter>Исходные файлы</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\Textures\container2.png">

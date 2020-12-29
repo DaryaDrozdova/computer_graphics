@@ -24,9 +24,12 @@ void renderQuad();
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-bool effect = true;
+bool effect = false;
 bool effectKeyPressed = false;
 float exposure = 1.0f;
+
+bool pbr = false;
+bool pbrKeyPressed = false;
 
 //camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -78,6 +81,8 @@ int main()
     Shader debugDepthQuad("debug_quad.vs", "debug_quad_depth.fs");
     Shader transparent("semi-transparent.vs", "semi-transparent.fs");
     Shader effectShader("posteffect1.vs", "posteffect1.fs");
+    Shader pbrShader("pbr.vs", "pbr.fs");
+    Shader lightCubeShader("light_cube.vs", "light_cube.fs");
 
     float planeVertices[] = {
         // positions            // normals         // texcoords
@@ -192,6 +197,9 @@ int main()
     transparent.setInt("texture1", 0);
     effectShader.use();
     effectShader.setInt("screenTexture", 0);
+    pbrShader.use();
+    pbrShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
+    pbrShader.setFloat("ao", 1.0f);
 
     glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
 
@@ -203,94 +211,126 @@ int main()
 
         processInput(window);
 
-        std::map<float, glm::vec3> sorted;  //sorting on the distance value
-        for (unsigned int i = 0; i < windows.size(); i++)
+        if (!pbr)
         {
-            float distance = glm::length(camera.Position - windows[i]);
-            sorted[distance] = windows[i];
+            std::map<float, glm::vec3> sorted;  //sorting on the distance value
+            for (unsigned int i = 0; i < windows.size(); i++)
+            {
+                float distance = glm::length(camera.Position - windows[i]);
+                sorted[distance] = windows[i];
+            }
+
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);//clear color and depth buffer each iteration
+
+            glm::mat4 lightProjection, lightView;
+            glm::mat4 lightSpaceMatrix;
+            float near_plane = 1.0f, far_plane = 7.5f;
+            //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
+            lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+            lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+            lightSpaceMatrix = lightProjection * lightView;
+            // render scene from light's point of view
+            simpleDepthShader.use();
+            simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+            glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+            glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, woodTexture);
+            renderScene(simpleDepthShader);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // reset viewport
+            glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            // 2. render scene as normal using the generated depth/shadow map  
+            // --------------------------------------------------------------
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+            glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            shader.use();
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            glm::mat4 view = camera.GetViewMatrix();
+            shader.setMat4("projection", projection);
+            shader.setMat4("view", view);
+            // set light uniforms
+            shader.setVec3("viewPos", camera.Position);
+            shader.setVec3("lightPos", lightPos);
+            shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, woodTexture);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+            renderScene(shader);
+
+
+            //windows without shadow because they are semi-transparent
+            glm::mat4 model = glm::mat4(1.0f);
+            transparent.use();
+            transparent.setMat4("projection", projection);
+            transparent.setMat4("view", view);
+            glBindVertexArray(transparentVAO);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, transparentTexture);
+            //take each of the map's values in reverse order (from farthest to nearest) and then draw
+            for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+            {
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, it->second);
+                transparent.setMat4("model", model);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // render Depth map to quad for visual debugging
+            // ---------------------------------------------
+            debugDepthQuad.use();
+            debugDepthQuad.setFloat("near_plane", near_plane);
+            debugDepthQuad.setFloat("far_plane", far_plane);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+            //renderQuad();
+
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            effectShader.use();
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+            effectShader.setInt("effect", effect);
+            renderQuad();
         }
-
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);//clear color and depth buffer each iteration
-        
-        glm::mat4 lightProjection, lightView;
-        glm::mat4 lightSpaceMatrix;
-        float near_plane = 1.0f, far_plane = 7.5f;
-        //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
-        lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-        lightSpaceMatrix = lightProjection * lightView;
-        // render scene from light's point of view
-        simpleDepthShader.use();
-        simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, woodTexture);
-        renderScene(simpleDepthShader);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        // reset viewport
-        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // 2. render scene as normal using the generated depth/shadow map  
-        // --------------------------------------------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        shader.use();
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        shader.setMat4("projection", projection);
-        shader.setMat4("view", view);
-        // set light uniforms
-        shader.setVec3("viewPos", camera.Position);
-        shader.setVec3("lightPos", lightPos);
-        shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, woodTexture);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        renderScene(shader);
-        
-
-        //windows without shadow because they are semi-transparent
-        glm::mat4 model = glm::mat4(1.0f);
-        transparent.use();
-        transparent.setMat4("projection", projection);
-        transparent.setMat4("view", view);
-        glBindVertexArray(transparentVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, transparentTexture);
-        //take each of the map's values in reverse order (from farthest to nearest) and then draw
-        for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+        else
         {
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            pbrShader.use();
+            glm::mat4 view = camera.GetViewMatrix();
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            pbrShader.setMat4("view", view);
+            pbrShader.setMat4("projection", projection);
+            pbrShader.setVec3("camPos", camera.Position);
+
+            pbrShader.setFloat("metallic", 0.5f);
+            pbrShader.setFloat("roughness", glm::clamp(0.5f, 0.05f, 1.0f));
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0));
+            pbrShader.setMat4("model", model);
+            renderCube();
+             
+            pbrShader.setVec3("lightPosition", lightPos);
+            pbrShader.setVec3("lightColor", glm::vec3(300.0f, 300.0f, 300.0f));
+
+            lightCubeShader.use();
+            lightCubeShader.setMat4("projection", projection);
+            lightCubeShader.setMat4("view", view);
             model = glm::mat4(1.0f);
-            model = glm::translate(model, it->second);
-            transparent.setMat4("model", model);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            model = glm::translate(model, lightPos);
+            model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+            lightCubeShader.setMat4("model", model);
+            renderCube();
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // render Depth map to quad for visual debugging
-        // ---------------------------------------------
-        debugDepthQuad.use();
-        debugDepthQuad.setFloat("near_plane", near_plane);
-        debugDepthQuad.setFloat("far_plane", far_plane);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        //renderQuad();
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        effectShader.use();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        effectShader.setInt("effect", effect);
-        renderQuad();
-
-        //std::cout << "hdr: " << (hdr ? "on" : "off") << "| exposure: " << exposure << std::endl;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -458,6 +498,16 @@ void processInput(GLFWwindow* window)//checks if the key is pressed
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE)
     {
         effectKeyPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS && !pbrKeyPressed)
+    {
+        pbr = !pbr;
+        pbrKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_RELEASE)
+    {
+        pbrKeyPressed = false;
     }
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
